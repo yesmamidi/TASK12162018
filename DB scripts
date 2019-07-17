@@ -1,0 +1,38 @@
+ 0 row(s) updated
+  0 row(s) updated
+Inserting
+Inserting is straightforward and works just as with selects. Here we define a method that constructs an Update0 that inserts a row into the person table.
+
+def insert1(name: String, age: Option[Short]): Update0 =
+  sql"insert into person (name, age) values ($name, $age)".update
+Let’s insert a few rows.
+
+scala> insert1("Alice", Some(12)).quick.run
+  1 row(s) updated
+
+scala> insert1("Bob", None).quick.run
+  1 row(s) updated
+And read them back.
+
+case class Person(id: Long, name: String, age: Option[Short])
+scala> sql"select id, name, age from person".query[Person].quick.run
+  Person(1,Alice,Some(12))
+  Person(2,Bob,None)
+Updating
+Updating follows the same pattern. Here we update Alice’s age.
+
+scala> sql"update person set age = 15 where name = 'Alice'".update.quick.run
+  1 row(s) updated
+
+scala> sql"select id, name, age from person".query[Person].quick.run
+  Person(2,Bob,None)
+  Person(1,Alice,Some(15))
+Retrieving Results
+When we insert we usually want the new row back, so let’s do that. First we’ll do it the hard way, by inserting, getting the last used key via lastVal(), then selecting the indicated row.
+
+def insert2(name: String, age: Option[Short]): ConnectionIO[Person] =
+  for {
+    _  <- sql"insert into person (name, age) values ($name, $age)".update.run
+    id <- sql"select lastval()".query[Long].unique
+    p  <- sql"select id, name, age from person where id = $id".query[Person].unique
+  } yield p
